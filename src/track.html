@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>SpaceFlightTool Track</title>
+    <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+    <script src="local-lib/vue.js"></script>
+    <script src="local-lib/jquery-3.3.1.min.js"></script>
+    <script src="local-lib/popper.min.js"></script>
+    <script src="local-lib/bootstrap.min.js"></script>
+  	<script src="local-lib/leaflet.js"></script>
+    <script src="local-lib/L.Terminator.js"></script>
+    <script>if (window.module) module = window.module;</script>
+    <link rel="stylesheet" href="local-lib/bootstrap.min.css">
+  	<link rel="stylesheet" href="local-lib/leaflet.css"/>
+    <style>
+        [readonly="readonly"] {
+            pointer-events: none;
+        }
+        #trackData {
+            margin-top: 10px;
+        }
+        #trackData button {
+            margin-bottom: 5px;
+        }
+        #map {
+            margin: auto;
+            margin-top: 20px;
+            width: 800px;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="card-group" id="trackData">
+        <div class="card border-primary card1">
+            <div class="card-body">
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" title="北美航空司令部对在轨物体的唯一编号">NORAD ID</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="id" readonly="readonly" value="" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的命名，R/B表示火箭残骸，DEB表示碎片等残骸">名称</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="name" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的国际编号，格式为年份-发射顺序(物体次序,A为主载荷,其他以此类推)">国际编号</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="itlid" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="这条TLE记录的时间点">TLE时间</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="time" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+            </div>
+        </div>
+        <div class="card border-primary card2">
+            <div class="card-body">
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" title="在轨物体环绕地球一周的时间">周期</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="period" readonly="readonly" value="" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的轨道与赤道面的夹角">轨道倾角</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="inc" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体轨道的近地点">近地点</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="pe" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体轨道的远地点">远地点</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="ap" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+            </div>
+        </div>
+        <div class="card border-primary card3">
+            <div class="card-body">
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" title="在轨物体的当前位置(经度)">经度</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="lon" id="lon" readonly="readonly" value="" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的当前位置(纬度)">纬度</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="lat" id="lat" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的高度">高度</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="hei" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的轨道速度">速度</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="vel" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+            </div>
+        </div>
+        <div class="card border-primary card4">
+            <div class="card-body">
+                <div>
+                    <button type="button" class="btn btn-sm btn-primary" @click="generatePos">
+                        追踪
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" @click="autoPos">
+                        自动追踪
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" @click="stopPos">
+                        停止追踪
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" @click="showAbout">
+                        About
+                    </button>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="自动追踪的间隔，单位为秒">间隔</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="intv" value="3">
+                </div>
+                <div class="form-check mb-1">
+                    <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input" id="autoF" checked="checked">
+                        <span class="description" data-toggle="tooltip" data-placement="top" title="跟踪tag自动居中">自动聚焦</span>
+                    </label>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="追踪的放大比例，取整数">自动放大</span>
+                    </div>
+                    <input type="text" class="form-control" id="autoZ" value="4">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="map"></div>
+</body>
+<script>
+
+    const {ipcRenderer, shell} = require('electron');
+    const satellite = require('satellite.js')
+
+    function getTLETime(temp) {
+      var yr = parseInt('20' + temp.substr(0,2)),
+          ds = parseInt(temp.substr(2,3)),
+          Feb = 0,
+          m = 0,
+          d = 0,
+          ss = (parseFloat(temp) - parseInt(temp)) * 86400,
+          hr = 0,
+          min = 0,
+          s = 0;
+      if (((yr / 4) - parseInt(yr / 4) === 0) && (yr / 400) - parseInt(yr / 400) === 0) {
+        Feb = 1;
+      }
+      if (Feb === 0) {
+        if (ds<=31){
+          m = 1;
+          d = ds;
+        }
+        if (ds>31 && ds<=59){
+          m = 2;
+          d = ds - 31;
+        }
+        if (ds>59 && ds<=90){
+          m = 3;
+          d = ds - 59;
+        }
+        if (ds>90 && ds<=120){
+          m = 4;
+          d = ds - 90;
+        }
+        if (ds>120 && ds<=151){
+          m = 5;
+          d = ds - 120;
+        }
+        if (ds>151 && ds<=181){
+          m = 6;
+          d = ds - 151;
+        }
+        if (ds>181 && ds<=212){
+          m = 7;
+          d = ds - 181;
+        }
+        if (ds>212 && ds<=243){
+          m = 8;
+          d = ds - 212;
+        }
+        if (ds>243 && ds<=273){
+          m = 9;
+          d = ds - 243;
+        }
+        if (ds>273 && ds<=304){
+          m = 10;
+          d = ds - 273;
+        }
+        if (ds>304 && ds<=334){
+          m = 11;
+          d = ds - 304;
+        }
+        if (ds>334 && ds<=365){
+          m = 12;
+          d = ds - 334;
+        }
+      }
+      if (Feb === 0) {
+        if (ds<=31){
+          m = 1;
+          d = ds;
+        }
+        if (ds>31 && ds<=60){
+          m = 2;
+          d = ds - 31;
+        }
+        if (ds>60 && ds<=91){
+          m = 3;
+          d = ds - 60;
+        }
+        if (ds>91 && ds<=121){
+          m = 4;
+          d = ds - 91;
+        }
+        if (ds>121 && ds<=152){
+          m = 5;
+          d = ds - 121;
+        }
+        if (ds>152 && ds<=182){
+          m = 6;
+          d = ds - 152;
+        }
+        if (ds>182 && ds<=213){
+          m = 7;
+          d = ds - 182;
+        }
+        if (ds>213 && ds<=244){
+          m = 8;
+          d = ds - 213;
+        }
+        if (ds>244 && ds<=274){
+          m = 9;
+          d = ds - 244;
+        }
+        if (ds>274 && ds<=305){
+          m = 10;
+          d = ds - 274;
+        }
+        if (ds>305 && ds<=335){
+          m = 11;
+          d = ds - 305;
+        }
+        if (ds>335 && ds<=366){
+          m = 12;
+          d = ds - 335;
+        }
+      }
+      hr = parseInt(ss / 3600);
+      min = parseInt((ss - 3600 * hr) / 60);
+      s = parseFloat((ss - 3600 * hr - 60 * min).toString().substr(0,6));
+      let time = yr + '.' + m + '.' + d + ' ' + hr + ':' + min + ':' + s;
+      return time;
+    }
+
+    function calculateElements(keyword,Line1,Line2) {
+        let rpd = parseFloat(Line2.substr(52,11)),
+            inc = parseFloat(Line2.substr(8,8)) + '°',
+            ecc = parseFloat('0.' + Line2.substr(26,7));
+        let semiaxis = Math.pow((3.9778e+14 * Math.pow((86400 / rpd),2)) / (4 * Math.pow(3.14159265,2)),(1 / 3)),
+            semifod = ecc * semiaxis,
+            pe = ((semiaxis - semifod - 6371393) / 1000).toString().substr(0,7) + ' km',
+            ap = ((semiaxis + semifod - 6371393) / 1000).toString().substr(0,7) + ' km';
+        let satrec = satellite.twoline2satrec(Line1, Line2);
+        let positionAndVelocity = satellite.propagate(satrec, new Date());
+        let positionEci = positionAndVelocity.position,
+            velocityEci = positionAndVelocity.velocity;
+        let now = new Date();
+        let gmst = satellite.gstime(now);
+        let positionEcf   = satellite.eciToEcf(positionEci, gmst),
+            positionGd    = satellite.eciToGeodetic(positionEci, gmst);
+        let longitude = positionGd.longitude,
+            latitude  = positionGd.latitude,
+            height    = positionGd.height;
+        if (longitude < -Math.PI) {
+            longitude = 2*Math.PI + longitude;
+        }
+        if (longitude > Math.PI) {
+            longitude = longitude - 2*Math.PI;
+        }
+        let longitudeStr = satellite.degreesLong(longitude),
+            latitudeStr  = satellite.degreesLat(latitude),
+            velocity = Math.sqrt(Math.pow(velocityEci.x,2) + Math.pow(velocityEci.y,2) + Math.pow(velocityEci.z,2));
+        let lonsym = '° E',
+          	latsym = '° N';
+        if (longitudeStr < 0) {
+          	lonsym = '° W';
+          	longitudeStr = Math.abs(longitudeStr);
+        }
+        if (latitudeStr < 0) {
+          	latsym = '° S';
+          	latitudeStr = Math.abs(latitudeStr);
+        }
+        let lon = longitudeStr.toFixed(3) + lonsym,
+            lat = latitudeStr.toFixed(3) + latsym,
+      	    hei = height.toFixed(3) + ' km',
+      	    vel = velocity.toFixed(3) + ' km/s';
+        switch (keyword) {
+            case 'period': {
+                let period = (1440 / rpd).toString().substr(0,7) + ' min';
+                return period;
+            }
+            case 'inc': {
+                return inc;
+            }
+            case 'pe': {
+                return pe;
+            }
+            case 'ap': {
+                return ap;
+            }
+            case 'time': {
+                let time = getTLETime(Line1.substr(18,14));
+                return time;
+            }
+            case 'lon': {
+                return lon;
+            }
+            case 'lat': {
+                return lat;
+            }
+            case 'hei': {
+                return hei;
+            }
+            case 'vel': {
+                return vel;
+            }
+            default: return;
+        }
+    }
+
+    function GetMap() {
+    	let azBox = document.getElementById('autoZ'),
+    		  afBox = document.getElementById('autoF'),
+    		  lonh = trackData.lon,
+    		  lath = trackData.lat;
+    	var lon = parseFloat(lonh.substr(0,lonh.indexOf('°',0))),
+    		  lat = parseFloat(lath.substr(0,lath.indexOf('°',0)));
+    	if (lonh.charAt(lonh.length-1) === 'W') {
+    		lon = -lon;
+    	}
+    	if (lath.charAt(lath.length-1) === 'S') {
+    		lat = -lat;
+    	}
+      mymap.removeLayer(marker);
+    	marker = L.marker([lat, lon]);
+    	mymap.addLayer(marker);
+    	if (afBox.checked === true) {
+    		mymap.setView([lat, lon], azBox.value);
+    	}
+    	else return;
+    }
+
+    let objectTrackData = {
+        id: 0,
+        name: '',
+        itlid: '',
+        Line1: '',
+        Line2: '',
+        period: '',
+        inc: 0,
+        pe: '',
+        ap: '',
+        time: '',
+        lon: '',
+        lat: '',
+        hei: '',
+        vel: ''
+    }
+
+    let autoPosStatus = false;
+
+    const trackData = new Vue ({
+        el: "#trackData",
+        data: {
+            id: objectTrackData.id,
+            name: objectTrackData.name,
+            itlid: objectTrackData.itlid,
+            period: objectTrackData.period,
+            inc: objectTrackData.inc,
+            pe: objectTrackData.pe,
+            ap: objectTrackData.ap,
+            time: objectTrackData.time,
+            lon: objectTrackData.lon,
+            lat: objectTrackData.lat,
+            hei: objectTrackData.hei,
+            vel: objectTrackData.vel,
+            intv: 3,
+        },
+        methods: {
+            generatePos: function() {
+                proxiedobjectTrackData.lon = calculateElements('lon', proxiedobjectTrackData.Line1, proxiedobjectTrackData.Line2);
+                proxiedobjectTrackData.lat = calculateElements('lat', proxiedobjectTrackData.Line1, proxiedobjectTrackData.Line2);
+                proxiedobjectTrackData.hei = calculateElements('hei', proxiedobjectTrackData.Line1, proxiedobjectTrackData.Line2);
+                proxiedobjectTrackData.vel = calculateElements('vel', proxiedobjectTrackData.Line1, proxiedobjectTrackData.Line2);
+                GetMap();
+            },
+            autoPos: function() {
+                autoPosStatus = true;
+                let intl = window.setInterval(function(){
+                    trackData.generatePos();
+              			if (autoPosStatus === false) window.clearInterval(intl);
+              	}, this.intv * 1e3);
+            },
+            stopPos: function() {
+                autoPosStatus = false;
+            },
+            showAbout: function() {
+                shell.openExternal('https://nssdc.gsfc.nasa.gov/nmc/spacecraftDisplay.do?id=' + this.itlid);
+            }
+        }
+    })
+
+    const objectTrackDataHandler = {
+        get: function(obj, prop) {
+            return obj[prop];
+        },
+        set: function(obj, prop, value) {
+            obj[prop] = value;
+            trackData[prop] = value;
+            return true;
+        }
+    }
+
+    const proxiedobjectTrackData = new Proxy(objectTrackData, objectTrackDataHandler);
+
+    ipcRenderer.on('MTOR', (event, arg) => {
+        if (arg.head === 'objectTrack') {
+            proxiedobjectTrackData.id = arg.body.id;
+            proxiedobjectTrackData.name = arg.body.name;
+            proxiedobjectTrackData.itlid = arg.body.itlid;
+            proxiedobjectTrackData.Line1 = arg.body.Line1;
+            proxiedobjectTrackData.Line2 = arg.body.Line2;
+            proxiedobjectTrackData.period = calculateElements('period', arg.body.Line1, arg.body.Line2);
+            proxiedobjectTrackData.inc = calculateElements('inc', arg.body.Line1, arg.body.Line2);
+            proxiedobjectTrackData.pe = calculateElements('pe', arg.body.Line1, arg.body.Line2);
+            proxiedobjectTrackData.ap = calculateElements('ap', arg.body.Line1, arg.body.Line2);
+            proxiedobjectTrackData.time = calculateElements('time', arg.body.Line1, arg.body.Line2);
+        }
+    });
+
+    $(function () { $('.description').tooltip();});
+
+</script>
+<script type="application/javascript">
+		var mymap = L.map('map').setView([0, 0], 2);
+		L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+    		attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+    		maxZoom: 18,
+    		id: 'mapbox.streets'
+		}).addTo(mymap);
+		var marker = L.marker([0, 0]);
+</script>
+</html>

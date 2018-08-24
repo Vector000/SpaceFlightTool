@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>SpaceFlightTool</title>
+    <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+    <script src="local-lib/vue.js"></script>
+    <script src="local-lib/jquery-3.3.1.min.js"></script>
+    <script src="local-lib/popper.min.js"></script>
+    <script src="local-lib/bootstrap.min.js"></script>
+    <script>if (window.module) module = window.module;</script>
+    <link rel="stylesheet" href="local-lib/bootstrap.min.css">
+    <style>
+    div {
+        float: none;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .topbar {
+        margin: 0.5%;
+    }
+    .selectback {
+        background-color: #6c757d;
+        color: #ffffff;
+    }
+    #TLETime {
+        float:right;
+        margin-right: -5px;
+    }
+    #search-input-box {
+        width: 88vw;
+        display: flex;
+    }
+    #search-input-box input {
+        width: 100%;
+    }
+    #search-input-box span {
+        margin-left: 5px;
+    }
+    #showListBox {
+        margin-top: 15px;
+    }
+    #showList {
+        margin-left: 30px;
+    }
+    #card-button {
+        float: left;
+        margin-top: 15px;
+    }
+    [readonly="readonly"] {
+        pointer-events: none;
+    }
+</style>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="row topbar">
+                <div class="col-md-12">
+                    <nav class="navbar navbar-expand-lg navbar-light bg-light static-top">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="window.location.href='config.html'">
+                            设置
+                        </button>
+                        <div id="TLETime">{{getTime}}</div>
+                    </nav>
+                </div>
+            </div>
+        </div>
+        <div id="search_app">
+            <div class="search-input">
+                <div class="btn btn-outline-secondary config_item" id="search-input-box">
+                    输入搜索关键词：
+                    <input v-model="search" @keyup="get($event)" @keydown.enter="tryInput(0)" @keydown.down="selectDown()" @keydown.up.prevent="selectUp()"/>
+                    <span @click="clearInput()" class="search-reset">&times;</span>
+                </div>
+                <div class="search-select" id="showListBox">
+                    <ul class="list-unstyled" mode="out-in" id="showList">
+                        <li v-for="(value,index) in myData" :class="{selectback:index==now}" :key="index" @click="tryThis(index)" @mouseover="selectHover(index)" class="search-select-option search-select-list">
+                            {{value}}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="card border-primary">
+            <div class="card-body" id="objectData">
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" title="北美航空司令部对在轨物体的唯一编号">NORAD ID</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="id" readonly="readonly" value="" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的命名，R/B表示火箭残骸，DEB表示碎片等残骸">名称</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="name" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <div class="input-group mb-1">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text description" data-toggle="tooltip" data-placement="top" title="在轨物体的国际编号，格式为年份-发射顺序(物体次序,A为主载荷,其他以此类推)">国际编号</span>
+                    </div>
+                    <input type="text" class="form-control" v-model="itlid" readonly="readonly" UNSELECTABLE="on" tabIndex=-1>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" id="card-button" @click="checkObject">
+                    查询
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+<script>
+    const {ipcRenderer} = require('electron');
+
+    function queryCache() {
+        ipcRenderer.send('RTOM', {head: 'getTLE', body: 'none'});
+    }
+
+    function searchJson(keyword, query) {//对json对象进行模糊搜索
+        if (keyword === '') return outputResult=[];
+        let len = query.length;
+        let outputResult = [];
+        let x = 0;
+        for (let i = 0; i < len; i++) {
+            if (query[i].id.toString().indexOf(keyword) !== -1 || query[i].name.indexOf(keyword) !== -1 || query[i].name.indexOf(keyword.toUpperCase()) !== -1 || query[i].itlid.indexOf(keyword) !== -1) {
+                outputResult[x] = query[i];
+                x++;
+            }
+            if (outputResult.length >= 10) break;
+        }
+        return outputResult;
+    }
+
+    // -------------------------------------------------------
+
+    let vueData = {
+        exists: false,
+        TLE: {
+            getTime: 0,
+        },
+    };
+
+    let computeData = {//搜索结束，等待计算的TLE数据
+        id: 0,
+        name: '',
+        itlid: '',
+        Line0: '',
+        Line1: '',
+        Line2: ''
+    }
+
+    const computeDataHandler = {
+        get: function(obj, prop) {
+            return obj[prop];
+        },
+        set: function(obj, prop, value) {
+            obj[prop] = value;
+            objectData[prop] = value;
+            return true;
+        }
+    }
+
+    const proxiedcomputeData = new Proxy(computeData, computeDataHandler);
+
+    // --------------------------------------------------------
+    // 启动后的工作
+
+    queryCache();
+
+    const getTime = new Vue({
+        el: "#TLETime",
+        data: {
+            getTime: vueData.TLE.getTime
+        }
+      });
+
+    ipcRenderer.on('MTOR', (event, arg) => {
+        switch (arg.head) {
+            case 'TLE': {
+                if (arg.body.exists) {
+                    vueData.exists = true;
+                    vueData.TLE = arg.body.data;
+                    if (typeof vueData.TLE === 'object') alert('已成功加载TLE');
+                    else alert('TLE加载失败，请检查设置');
+                    let date = new Date();
+                    date.setTime(vueData.TLE.getTime);
+                    getTime.getTime = "获取时间：" + date.toString().substr(4,date.toString().length - 22);
+                    if (new Date().getTime() - vueData.TLE.getTime > 2 * 24 * 60 * 60 * 1000) {
+                        alert('TLE时间过老，请检查并获取最新的TLE！');
+                    }
+                }
+            }
+        }
+    });
+
+    const search_app = new Vue({
+        el: "#search_app",
+        data: function() {
+            return {
+                search: '',//关键词
+                myResult: [],//搜索结果，对象
+                myData: [],//搜索结果，摘要
+                now: -1//光标位置
+            }
+        },
+        methods: {
+            get: function(event) {
+                if (event.keyCode == 38 || event.keyCode == 40){//向上向下
+                    return;
+                }
+                if (this.search === '') {
+                    this.myResult = [];
+                    this.myData = [];
+                }
+                else {
+                    this.myResult = searchJson(this.search, vueData.TLE.data);
+                    this.myData = [];
+                    for (let i = 0; i < this.myResult.length; i++) {
+                        this.myData[i] = this.myResult[i].name + ' (' +  this.myResult[i].itlid + '/' + this.myResult[i].id + ')';
+                    }
+                    if (this.myResult.length === 0) this.myData[0] = '无搜索结果！';
+                }
+            },
+            clearInput: function() {//清空搜索框
+                this.search = '';
+                this.myData = [];
+                this.myResult = [];
+                form_reset();
+            },
+            tryInput: function(index) {//搜索
+                if (this.myResult.length === 0) {
+                    alert('无搜索结果！');
+                    form_reset();
+                    return;
+                }
+                for (var key in this.myResult[index]) {
+                    proxiedcomputeData[key] = this.myResult[index][key];
+                }
+            },
+            tryThis: function(index) {//点击菜单项
+                this.tryInput(index);
+            },
+            selectHover: function(index) {//鼠标悬停
+                this.now = index;
+            },
+            selectDown: function() {//键盘向下
+                this.now++;
+                if (this.now == this.myResult.length) {
+                    this.now = 0;
+                }
+            },
+            selectUp: function() {//键盘向上
+                this.now--;
+                if (this.now == -1) {
+                    this.now = this.myResult.length - 1;
+                }
+            }
+        }
+    })
+
+    const objectData = new Vue({//实例化表格对象
+        el: "#objectData",
+        data: {
+            id: computeData.id,
+            name: computeData.name,
+            itlid: computeData.itlid
+        },
+        methods: {
+            checkObject: function() {
+                ipcRenderer.send('RTOM', {
+                    head: 'objectTrack',
+                    body: {
+                        id: proxiedcomputeData.id,
+                        name: proxiedcomputeData.name,
+                        itlid: proxiedcomputeData.itlid,
+                        Line0: proxiedcomputeData.Line0,
+                        Line1: proxiedcomputeData.Line1,
+                        Line2: proxiedcomputeData.Line2
+                    }
+                });
+            }
+        }
+    })
+
+    function form_reset() {//重置表格
+        proxiedcomputeData.id = 0
+        for (var key in proxiedcomputeData) {
+            if (proxiedcomputeData[key] === 0) continue;
+            proxiedcomputeData[key] = '';
+        }
+    }
+
+    $(function () { $('.description').tooltip();});
+
+</script>
+</html>
