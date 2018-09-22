@@ -8,7 +8,7 @@ Date.prototype.getJulian = function() {
 }
 
 Date.prototype.getGMST = function() {
-    /* Calculate Greenwich Mean Sidereal Time according to 
+    /* Calculate Greenwich Mean Sidereal Time according to
        http://aa.usno.navy.mil/faq/docs/GAST.php */
     var julianDay = this.getJulian();
     var d = julianDay - 2451545.0;
@@ -24,7 +24,7 @@ L.Terminator = L.Polygon.extend({
 	fillOpacity: 0.4,
 	resolution: 2
     },
-    
+
     initialize: function(options) {
 	this.version = '0.1.0';
 	this._R2D = 180 / Math.PI;
@@ -53,7 +53,7 @@ L.Terminator = L.Polygon.extend({
 	var g = 357.528 + 0.9856003 * n;
 	g %= 360;
 	// ecliptic longitude of Sun
-	var lambda = L + 1.915 * Math.sin(g * this._D2R) + 
+	var lambda = L + 1.915 * Math.sin(g * this._D2R) +
 	    0.02 * Math.sin(2 * g * this._D2R);
 	// distance from Sun in AU
 	var R = 1.00014 - 0.01671 * Math.cos(g * this._D2R) -
@@ -67,11 +67,11 @@ L.Terminator = L.Polygon.extend({
 	var n = julianDay - 2451545.0;
 	// Julian centuries since J2000.0
 	var T = n / 36525;
-	var epsilon = 23.43929111 - 
-	    T * (46.836769 / 3600 
-		 - T * (0.0001831 / 3600 
-			+ T * (0.00200340 / 3600 
-			       - T * (0.576e-6 / 3600 
+	var epsilon = 23.43929111 -
+	    T * (46.836769 / 3600
+		 - T * (0.0001831 / 3600
+			+ T * (0.00200340 / 3600
+			       - T * (0.576e-6 / 3600
 				      - T * 4.34e-8 / 3600))));
 	return epsilon;
     },
@@ -80,15 +80,15 @@ L.Terminator = L.Polygon.extend({
 	/* Compute the Sun's equatorial position from its ecliptic
 	 * position. Inputs are expected in degrees. Outputs are in
 	 * degrees as well. */
-	var alpha = Math.atan(Math.cos(eclObliq * this._D2R) 
+	var alpha = Math.atan(Math.cos(eclObliq * this._D2R)
 			      * Math.tan(sunEclLng * this._D2R)) * this._R2D;
-	var delta = Math.asin(Math.sin(eclObliq * this._D2R) 
+	var delta = Math.asin(Math.sin(eclObliq * this._D2R)
 			      * Math.sin(sunEclLng * this._D2R)) * this._R2D;
-	
+
 	var lQuadrant  = Math.floor(sunEclLng / 90) * 90;
 	var raQuadrant = Math.floor(alpha / 90) * 90;
 	alpha = alpha + (lQuadrant - raQuadrant);
-	
+
 	return {"alpha": alpha, "delta": delta};
     },
 
@@ -102,7 +102,7 @@ L.Terminator = L.Polygon.extend({
     _latitude: function(ha, sunPos) {
 	/* For a given hour angle and sun position, compute the
 	 * latitude of the terminator in degrees. */
-	var lat = Math.atan(-Math.cos(ha * this._D2R) / 
+	var lat = Math.atan(-Math.cos(ha * this._D2R) /
 			    Math.tan(sunPos.delta * this._D2R)) * this._R2D;
 	return lat;
     },
@@ -112,11 +112,11 @@ L.Terminator = L.Polygon.extend({
 	    var today = new Date();
 	else
 	    var today = new Date(time);
-	var julianDay = today.getJulian(); 
+	var julianDay = today.getJulian();
 	var gst = today.getGMST();
 	var latLng = [];
-	var ha, lat;
-	
+	var ha, lat, lng;
+
 	var sunEclPos = this._sunEclipticPosition(julianDay);
 	var eclObliq = this._eclipticObliquity(julianDay);
 	var sunEqPos = this._sunEquatorialPosition(sunEclPos.lambda, eclObliq);
